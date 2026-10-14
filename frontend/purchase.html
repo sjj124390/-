@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>填写购买信息 · 在线购物</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="navbar">
+      <div class="container">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">购</span>
+          在线购物
+          <span class="brand-sub">单商品体验店</span>
+        </a>
+        <nav class="navbar-links">
+          <a href="login.html">卖家后台</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-body" id="page-main">
+      <div class="container">
+        <a class="back-link" href="index.html">&larr; 返回商品详情</a>
+        <div class="purchase-layout">
+          <aside class="card purchase-summary" id="summary">
+            <div class="state-box" style="padding: 30px 0">
+              <div class="spinner"></div>
+            </div>
+          </aside>
+
+          <section class="card card-pad">
+            <h2 class="card-title">填写购买信息</h2>
+            <form id="purchase-form" novalidate>
+              <div class="form-item">
+                <label>联系人姓名<span class="required">*</span></label>
+                <input id="buyerName" type="text" maxlength="50" placeholder="请输入您的称呼" autocomplete="off" />
+              </div>
+              <div class="form-item">
+                <label>联系电话<span class="required">*</span></label>
+                <input id="buyerPhone" type="text" maxlength="20" placeholder="请输入手机号，便于卖家联系" autocomplete="off" />
+              </div>
+              <div class="form-item">
+                <label>备注</label>
+                <textarea id="remark" maxlength="500" placeholder="可填写期望交易时间、地点等（选填）"></textarea>
+              </div>
+              <div class="form-error" id="form-error"></div>
+              <div style="display: flex; gap: 12px; margin-top: 6px">
+                <button type="button" class="btn btn-ghost" onclick="location.href='index.html'">返回</button>
+                <button type="submit" class="btn btn-primary" id="submit-btn" disabled>提交购买</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/purchase.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>卖家登录 · 在线购物</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-head">
+        <div class="login-logo">购</div>
+        <h2>卖家后台登录</h2>
+        <p>在线购物系统 · 单卖家管理端</p>
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="form-item">
+          <label>账号</label>
+          <input id="username" type="text" placeholder="请输入卖家账号" autocomplete="username" />
+        </div>
+        <div class="form-item">
+          <label>密码</label>
+          <input id="password" type="password" placeholder="请输入密码" autocomplete="current-password" />
+        </div>
+        <div class="form-error" id="login-error"></div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-btn">登录</button>
+      </form>
+
+      <div class="login-foot">
+        <a href="index.html">&larr; 返回商品前台</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
