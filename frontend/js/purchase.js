@@ -49,7 +49,7 @@
 
   // 载入商品简要信息
   if (productId) {
-    Api.getProductDetail()
+    Api.getProductDetail(productId)
       .then(function (data) {
         var p = normalize(data);
         if (p.id != null && p.id !== '') productId = p.id;
@@ -119,7 +119,7 @@
         } else {
           toastSuccess('购买意向已提交，卖家将联系您');
           setTimeout(function () {
-            location.href = 'index.html';
+            location.href = productId ? 'index.html?id=' + encodeURIComponent(productId) : 'index.html';
           }, 1200);
         }
       })

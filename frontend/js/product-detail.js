@@ -6,6 +6,7 @@
 (function () {
   var wrap = document.getElementById('detail-wrap');
   var esc = Utils.escapeHtml;
+  var productId = Utils.getQuery('id');
 
   var IMG_ICON =
     '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"' +
@@ -94,7 +95,7 @@
   }
 
   renderLoading(wrap, '商品加载中…');
-  Api.getProductDetail()
+  Api.getProductDetail(productId)
     .then(function (data) {
       render(normalize(data));
     })

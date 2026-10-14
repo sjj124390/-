@@ -78,8 +78,19 @@
             if (!payload || payload.code !== 200) {
               var code = payload ? payload.code : response.status;
               var message = (payload && payload.message) || '请求失败，请稍后重试';
-              // 登录失效：清除本地登录态，由页面决定是否跳转登录
-              if (code === 401) clearAuth();
+              // 登录失效：清除本地登录态并自动跳转登录页
+              if (code === 401) {
+                var wasLoggedIn = !!getToken();
+                clearAuth();
+                if (
+                  wasLoggedIn &&
+                  typeof window !== 'undefined' &&
+                  window.location &&
+                  !/login\.html(\?|#|$)/.test(window.location.pathname + window.location.search)
+                ) {
+                  window.location.href = 'login.html';
+                }
+              }
               throw new ApiError(message, code);
             }
             return payload.data;
@@ -94,8 +105,13 @@
   // ---------- 业务接口 ----------
   var Api = {
     // 前台
-    getProductDetail: function () {
-      return request('/product/detail');
+    // id 可选：不传时由后端返回当前商品（单商品体验店）
+    getProductDetail: function (id) {
+      var opts = {};
+      if (id !== null && id !== undefined && id !== '') {
+        opts.params = { id: id };
+      }
+      return request('/product/detail', opts);
     },
     submitOrder: function (body) {
       return request('/order/submit', { method: 'POST', body: body });
