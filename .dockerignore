@@ -1,0 +1,11 @@
+.git
+.github
+**/target
+**/__pycache__
+*.zip
+*.mp4
+*.pptx
+*.tar
+*.tar.gz
+.env
+docs

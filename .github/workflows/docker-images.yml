@@ -1,0 +1,81 @@
+name: Build test and publish Docker images
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'database/**'
+      - 'deploy/docker/**'
+      - 'compose.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker-images.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: docker-images-main
+  cancel-in-progress: false
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IMAGE_PREFIX: ghcr.io/sjj124390/online-shopping
+      IMAGE_TAG: sha-${{ github.sha }}
+      COMPOSE_PROJECT_NAME: oss-ci-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and build all three images from source
+        run: |
+          docker compose config --quiet
+          docker compose build
+      - name: Start isolated database backend and frontend
+        run: docker compose up -d --no-build --wait --wait-timeout 240
+      - name: Test HTTP proxy database and transaction flow
+        run: |
+          mkdir -p evidence
+          set -o pipefail
+          python3 deploy/docker/smoke_test.py --allow-write | tee evidence/docker-smoke-test.txt
+          docker compose ps > evidence/compose-ps.txt
+          docker image inspect "$IMAGE_PREFIX/backend:$IMAGE_TAG" "$IMAGE_PREFIX/frontend:$IMAGE_TAG" "$IMAGE_PREFIX/database:$IMAGE_TAG" > evidence/image-inspect.json
+          printf '%s\n' "$GITHUB_SHA" > evidence/source-commit.txt
+      - name: Export Docker image archive
+        run: |
+          docker save "$IMAGE_PREFIX/backend:$IMAGE_TAG" "$IMAGE_PREFIX/frontend:$IMAGE_TAG" "$IMAGE_PREFIX/database:$IMAGE_TAG" | gzip > evidence/OSS-docker-images.tar.gz
+          sha256sum evidence/OSS-docker-images.tar.gz > evidence/SHA256SUMS
+      - name: Upload image archive and verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSS-docker-images-${{ github.run_number }}
+          path: evidence/
+          retention-days: 30
+          compression-level: 0
+      - name: Authenticate to GitHub Container Registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish tested versioned images
+        run: |
+          for component in backend frontend database; do
+            image="$IMAGE_PREFIX/$component"
+            docker push "$image:$IMAGE_TAG"
+            docker tag "$image:$IMAGE_TAG" "$image:1.0.0"
+            docker push "$image:1.0.0"
+          done
+          {
+            echo '### Docker images built and smoke-tested'
+            echo "Source commit: $GITHUB_SHA"
+            for component in backend frontend database; do
+              echo "- $IMAGE_PREFIX/$component:$IMAGE_TAG"
+              echo "- $IMAGE_PREFIX/$component:1.0.0"
+            done
+            echo 'The downloadable artifact includes docker-load archives and test evidence.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect failure logs
+        if: failure()
+        run: docker compose logs --no-color --tail 120
+      - name: Stop disposable CI containers
+        if: always()
+        run: docker compose down --volumes
