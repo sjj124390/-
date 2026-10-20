@@ -1,0 +1,40 @@
+name: Publish Docker offline package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v1.0.0
+    steps:
+      - name: Download previously verified Docker images
+        run: |
+          mkdir -p docker-artifact
+          gh run download 39376920770 --name OSS-docker-images-1 --dir docker-artifact
+          test -s docker-artifact/OSS-docker-images.tar.gz
+          ls -lh docker-artifact
+
+      - name: Repackage artifact for public downloads
+        run: |
+          (cd docker-artifact && zip -0 -r ../OSS-docker-images-1.zip .)
+          unzip -tq OSS-docker-images-1.zip
+
+      - name: Publish GitHub Release asset
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" OSS-docker-images-1.zip --clobber
+          else
+            gh release create "$RELEASE_TAG" OSS-docker-images-1.zip \
+              --target ccce62f5ae201d00d2236b16a120fbb778964a2f \
+              --title "在线购物系统 1.0.0" \
+              --notes "第10组在线购物系统 Docker 离线镜像包；复用已通过 17 项容器链路检查的 GitHub Actions 构建产物。"
+          fi
+          gh release view "$RELEASE_TAG" --json url,assets
