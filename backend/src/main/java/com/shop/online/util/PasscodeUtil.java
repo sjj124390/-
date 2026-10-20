@@ -52,7 +52,8 @@ public final class PasscodeUtil {
     public static byte[] computeHash(String rawCode) {
         try {
             String keyValue = System.getenv(ENV_KEY);
-            if (keyValue == null || keyValue.isBlank()) {
+            // 联调修复（组员D）：isBlank() 是 Java 11+ API，本机 JDK 8 编译失败，改为等价的 trim().isEmpty()
+            if (keyValue == null || keyValue.trim().isEmpty()) {
                 keyValue = DEV_FALLBACK_KEY;
             }
             Mac mac = Mac.getInstance(ALGO);
