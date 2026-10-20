@@ -2,6 +2,8 @@
 
 项目：第10组在线购物系统（OSS）；应用版本：1.0.0；整理日期：2026-10-20。
 
+本次必须交付 Docker 镜像。Docker 多阶段构建会在 Maven 容器内编译本页描述的后端源码，详见 [Docker 构建与交付手册](docker-guide.md)。自动工作流只有在容器集成测试成功后才会导出和发布镜像。
+
 ## 1. 源码与版本
 
 - 仓库：[sjj124390/-](https://github.com/sjj124390/-)。
@@ -59,4 +61,4 @@ mvn clean package
 - JDK 8 提示找不到 `isBlank()`：请使用同步后的源码；旧展开版本含 Java 11 API，已恢复上传包中的兼容写法。
 - JAR 运行报数据库连接错误：按[安装与部署手册](deployment-guide.md)配置数据库，这不是编译错误。
 
-本次进行了源码、POM、交付包及 JAR 清单核对；本次整理环境无 Maven/MySQL，未重新执行构建或数据库功能测试。原组员测试结果见仓库 `test-report.md`，与本次检查区分记录。
+本地整理环境无 Maven/MySQL。新增 GitHub Actions Docker 工作流已实际在 Maven 容器内重新编译，并启动三项容器完成 17 项链路测试。对应运行结果与镜像交付见 Docker 手册；原组员历史测试结果见仓库 `test-report.md`，两者分别记录。

@@ -4,7 +4,7 @@
 
 ## 1. 部署方式
 
-采用本地 JAR + MySQL + Python 静态服务器方式。支持安装了相应工具的 Windows/Linux；原测试报告环境为 Windows 10。本项目尚未提供 Docker 镜像，本手册不填写不存在的镜像地址。
+本次验收必须提交 Docker 镜像，主部署方式改为 Docker Compose，构建、镜像获取、一键启动与验证见 [Docker 镜像部署手册](docker-guide.md)。以下保留本地 JAR + MySQL + Python 方式作为辅助排错方案。原测试报告环境为 Windows 10。
 
 | 服务 | 地址/端口 |
 |---|---|
