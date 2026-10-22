@@ -92,7 +92,6 @@ public class IntentServiceImpl implements IntentService {
                 + "FROM purchase_intent i "
                 + "JOIN product p ON p.id = i.product_id "
                 + "WHERE HEX(i.code_hash) = ? "
-                + "
                 + "ORDER BY i.id DESC LIMIT 1";
         List<Map<String, Object>> rows = jdbc.queryForList(sql, hexHash);
         if (rows.isEmpty()) {
