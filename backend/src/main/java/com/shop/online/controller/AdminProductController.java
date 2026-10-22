@@ -13,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 卖家后台 - 商品管理
@@ -46,6 +47,12 @@ public class AdminProductController {
     public Result<Void> publish(@PathVariable Long id) {
         productService.publish(id);
         return Result.success();
+    }
+
+    /** 查询下架影响，供前端显示二次确认提示。 */
+    @GetMapping("/{id}/withdraw-preview")
+    public Result<Map<String, Object>> withdrawPreview(@PathVariable Long id) {
+        return Result.success(productService.withdrawPreview(id));
     }
 
     /** 手动下架（当前在售商品 OFF_SHELF + 取消所有 PENDING 意向） */
