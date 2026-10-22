@@ -92,15 +92,27 @@ public class IntentServiceImpl implements IntentService {
                 + "FROM purchase_intent i "
                 + "JOIN product p ON p.id = i.product_id "
                 + "WHERE HEX(i.code_hash) = ? "
-                + "AND i.code_expires_at > NOW() "
-                + "AND i.status IN ('PENDING','SELECTED','COMPLETED') "
+                + "
                 + "ORDER BY i.id DESC LIMIT 1";
         List<Map<String, Object>> rows = jdbc.queryForList(sql, hexHash);
         if (rows.isEmpty()) {
             throw new BusinessException(404, "口令码无效或已过期");
         }
-        // 数据库字段名是 intent_id/product_name/product_status，直接返回
-        return rows.get(0);
+        Map<String, Object> result = rows.get(0);
+        String status = String.valueOf(result.get("intent_status"));
+        if ("CANCELLED".equals(status) || "EXPIRED".equals(status)) {
+            throw new BusinessException(410, "口令码已失效");
+        }
+        Object exp = result.get("code_expires_at");
+        LocalDateTime expiresAt = exp instanceof LocalDateTime
+                ? (LocalDateTime) exp
+                : ((Timestamp) exp).toLocalDateTime();
+        if (!expiresAt.isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC))) {
+            throw new BusinessException(410, "口令码已失效");
+        }
+        // 仅返回商品和状态，不暴露买家联系方式或口令摘要。
+        result.remove("code_expires_at");
+        return result;
     }
 
     @Override
