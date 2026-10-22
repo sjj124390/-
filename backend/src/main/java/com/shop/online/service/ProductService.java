@@ -4,6 +4,7 @@ import com.shop.online.entity.Product;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 商品服务（配合组员C 数据库 + 存储过程）
@@ -31,6 +32,9 @@ public interface ProductService {
      * 组员C 要求放在一个 JDBC 事务里（条件 UPDATE 检查影响行数）
      */
     void withdraw(Long productId);
+
+    /** 下架确认前预览影响的购买意向数与状态。 */
+    Map<String, Object> withdrawPreview(Long productId);
 
     /** 商品历史（含已售、已下架、冻结、在售、草稿全部） */
     List<Product> history();
