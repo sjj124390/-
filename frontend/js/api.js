@@ -119,6 +119,9 @@
     offlineProduct: function(id){
       return request('/product/offline', { method: 'POST', params: { id: id } });
     },
+queryIntent: function(body){
+  return request('/order/query',{method:'POST',body:body})
+},
 
     // 卖家后台
     sellerLogin: function (body) {
