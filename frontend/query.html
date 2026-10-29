@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>查询购买意向</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="navbar">
+      <div class="container">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">购</span>
+          在线购物
+          <span class="brand-sub">单商品体验店</span>
+        </a>
+        <nav class="navbar-links">
+          <a href="index.html">商品详情</a>
+          <a href="login.html">卖家后台</a>
+        </nav>
+      </div>
+    </header>
+    <main class="page-body">
+      <div class="container" style="max-width:520px">
+        <div class="card card-pad">
+          <h2 class="card-title">凭查询口令查看意向结果</h2>
+          <form id="query-form">
+            <div class="form-item">
+              <label>查询口令<span class="required">*</span></label>
+              <input id="queryCode" type="text" placeholder="输入提交意向后获取的口令码">
+            </div>
+            <div class="form-error" id="query-error"></div>
+            <div id="result-box"></div>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top:16px">查询</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/common.js"></script>
+<script src="js/query.js"></script>
+</body>
+</html>
