@@ -167,6 +167,31 @@ BEGIN
  END IF;
  COMMIT;
 END$$
-DELIMITER ;
+ 
+-- ===================== 本轮新增：商品手动下架存储过程 withdraw_product =====================
+CREATE PROCEDURE withdraw_product(IN p_product BIGINT UNSIGNED)
+BEGIN
+ DECLARE v_status VARCHAR(20) DEFAULT NULL;
+ DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+ START TRANSACTION;
+ -- 1.锁定商品，校验状态：冻结中(FROZEN)禁止下架，仅在售(ON_SALE)允许下架
+ SELECT status INTO v_status FROM product WHERE id=p_product FOR UPDATE;
+ IF v_status IS NULL THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Product not exists';
+ END IF;
+ IF v_status = 'FROZEN' THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trading frozen product cannot be withdrawn';
+ END IF;
+ IF v_status <> 'ON_SALE' THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Only on-sale product can be withdrawn';
+ END IF;
+ -- 2.更新商品状态为手动下架 OFF_SHELF
+ UPDATE product SET status='OFF_SHELF' WHERE id=p_product;
+ -- 3.同一事务，取消该商品所有未成交意向（PENDING）
+ UPDATE purchase_intent
+ SET status='CANCELLED'
+ WHERE product_id=p_product AND status='PENDING';
+ COMMIT;
+END$$
 
--- 不预置卖家密码和真实买家信息。后台初始化卖家后创建商品。
+DELIMITER ;
