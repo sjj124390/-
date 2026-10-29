@@ -116,6 +116,9 @@
     submitOrder: function (body) {
       return request('/order/submit', { method: 'POST', body: body });
     },
+    offlineProduct: function(id){
+      return request('/product/offline', { method: 'POST', params: { id: id } });
+    },
 
     // 卖家后台
     sellerLogin: function (body) {
