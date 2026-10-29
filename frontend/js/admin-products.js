@@ -51,10 +51,15 @@
       return;
     }
     var st = PRODUCT_STATUS[p.status] || { text: '未知', cls: 'badge-sold' };
-    var action =
-      p.status === 0
-        ? '<button class="btn btn-ghost btn-sm" data-act="freeze" data-id="' + esc(p.id) + '">手动冻结</button>'
-        : '<button class="btn btn-outline-primary btn-sm" data-act="restore" data-id="' + esc(p.id) + '">解除冻结</button>';
+    var action = '';
+// 迭代2业务规则：仅在售商品允许手动下架；交易冻结(1)不可直接下架
+if (p.status === 0) {
+  action += '<button class="btn btn-ghost btn-sm" data-act="freeze" data-id="' + esc(p.id) + '">手动冻结</button>';
+  // 新增：手动下架按钮
+  action += '<button class="btn btn-danger btn-sm" data-act="offline" data-id="' + esc(p.id) + '" style="margin-left:8px">手动下架</button>';
+} else if (p.status === 1) {
+  action += '<button class="btn btn-outline-primary btn-sm" data-act="restore" data-id="' + esc(p.id) + '">解除冻结</button>';
+}
 
     currentBox.innerHTML =
       '<div class="current-product">' +
