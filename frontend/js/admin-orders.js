@@ -38,15 +38,18 @@
       .map(function (o) {
         var st = ORDER_STATUS[o.status] || { text: '未知', cls: 'badge-pending' };
         var ops;
-        if (o.status === 0) {
-          ops =
-            '<div class="table-actions">' +
-            '<button class="btn btn-success btn-sm" data-act="success" data-id="' + esc(o.id) + '">标记成功</button>' +
-            '<button class="btn btn-danger btn-sm" data-act="failed" data-id="' + esc(o.id) + '">标记失败</button>' +
-            '</div>';
-        } else {
-          ops = '<span style="color: var(--text-light)">—</span>';
-        }
+        // 原代码：if (o.status ===0)
+// 修改为：
+if (o.status === 0) {
+  ops =
+    '<div class="table-actions">' +
+    '<button class="btn btn-success btn-sm" data-act="success" data-id="' + esc(o.id) + '">标记成功</button>' +
+    '<button class="btn btn-danger btn-sm" data-act="failed" data-id="' + esc(o.id) + '">标记失败</button>' +
+    '</div>';
+} else {
+  ops = '<span style="color: var(--text-light)">—</span>';
+}
+
         return (
           '<tr>' +
           '<td>' + esc(o.productName) + '</td>' +
