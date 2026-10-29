@@ -88,24 +88,52 @@ if (p.status === 0) {
     });
   }
 
-  function doAction(type, id) {
-    var isFreeze = type === 'freeze';
+ function doAction(type, id) {
+  var isFreeze = type === 'freeze';
+  var isRestore = type === 'restore';
+  var isOffline = type === 'offline';
+
+  if(isOffline){
+    // 迭代2二次确认弹窗，严格按照需求文案
     confirmDialog(
-      isFreeze
-        ? '确定要手动冻结该商品吗？冻结后买家将无法提交购买意向。'
-        : '确定要解除冻结吗？解除后商品将恢复为在售状态。',
-      isFreeze ? '冻结商品' : '解除冻结'
+      '确认手动下架该商品？\n下架后该商品所有排队未成交购买意向统一失效，系统不会自动通知买家。',
+      '手动下架商品'
     ).then(function (ok) {
       if (!ok) return;
-      var req = isFreeze ? Api.freezeProduct(id) : Api.restoreProduct(id);
-      req
+      Api.offlineProduct(id)
         .then(function () {
-          toastSuccess(isFreeze ? '商品已冻结' : '商品已解除冻结');
+          toastSuccess('商品已手动下架，排队意向全部作废');
           load();
         })
         .catch(handleApiError);
     });
+    return;
   }
+
+  if (isFreeze) {
+    confirmDialog(
+      '确定要手动冻结该商品吗？冻结后买家将无法提交购买意向。',
+      '冻结商品'
+    ).then(function (ok) {
+      if (!ok) return;
+      Api.freezeProduct(id)
+        .then(function () {
+          toastSuccess('商品已冻结');
+          load();
+        })
+        .catch(handleApiError);
+    });
+  } else if (isRestore) {
+    confirmDialog(
+      '确定要解除冻结吗？解除后商品将恢复为在售状态。',
+      '解除冻结'
+    ).then(function (ok) {
+      if (!ok) return;
+      Api.restoreProduct(id);
+    });
+  }
+}
+
 
   // ---------------- 渲染：历史商品 ----------------
   function renderHistory(list) {
@@ -235,5 +263,31 @@ if (p.status === 0) {
   document.getElementById('btn-add').addEventListener('click', openAddModal);
   document.getElementById('btn-refresh').addEventListener('click', load);
 
-  load();
+  load() {
+    renderLoading(currentBox, '加载中…');
+    renderLoading(historyBox, '加载中…');
+    Api.getProductList()
+      .then(function (data) {
+        var list = Utils.normalizeList(data).map(normalize);
+        var current = null;
+        var history = [];
+        list.forEach(function (p) {
+          // 当前商品：在售0 / 交易冻结1
+          if (p.status === 0 || p.status === 1) {
+            if (!current) current = p;
+          } 
+          // 历史：已售2、手动下架3
+          else if (p.status === 2 || p.status ===3) {
+            history.push(p);
+          }
+        });
+        renderCurrent(current);
+        renderHistory(history);
+      })
+      .catch(function (err) {
+        renderError(currentBox, err.message || '加载失败');
+        renderError(historyBox, err.message || '加载失败');
+      });
+}
+
 })();
