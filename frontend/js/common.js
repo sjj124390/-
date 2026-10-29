@@ -3,19 +3,22 @@
  * 包含：Toast 提示、确认弹窗、登录守卫、格式化、后台侧边栏渲染、常量定义
  */
 (function () {
-  // ========================= 常量 =========================
-  // 商品状态（对接字段 data.status / product.status）
-  window.PRODUCT_STATUS = {
-    0: { text: '在售', cls: 'badge-on-sale' },
-    1: { text: '冻结', cls: 'badge-frozen' },
-    2: { text: '已售', cls: 'badge-sold' }
-  };
-  // 订单状态
-  window.ORDER_STATUS = {
-    0: { text: '待交易', cls: 'badge-pending' },
-    1: { text: '交易成功', cls: 'badge-success' },
-    2: { text: '交易失败', cls: 'badge-failed' }
-  };
+ // ========================= 常量 =========================
+// 商品状态（对接字段 data.status / product.status）
+window.PRODUCT_STATUS = {
+  0: { text: '在售', cls: 'badge-on-sale' },
+  1: { text: '交易冻结/交易中', cls: 'badge-frozen' },
+  2: { text: '已售', cls: 'badge-sold' },
+  3: { text: '手动下架', cls: 'badge-sold' }
+};
+// 订单状态
+window.ORDER_STATUS = {
+  0: { text: '待交易', cls: 'badge-pending' },
+  1: { text: '交易成功', cls: 'badge-success' },
+  2: { text: '交易失败', cls: 'badge-failed' },
+  3: { text: '意向失效(下架作废)', cls: 'badge-failed' }
+};
+
 
   // ========================= 通用工具 =========================
   function escapeHtml(str) {
