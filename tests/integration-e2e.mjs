@@ -125,7 +125,7 @@ await step('用例 6：已有在售商品时发布新商品被业务规则拒绝
   ok('错误文案已本地化为中文', msg.indexOf('已有在售') === 0, msg);
 });
 
-await step('用例 7：买家提交购买意向 → 商品自动冻结', async () => {
+await step('用例 7：买家提交购买意向进入排队（迭代 2 排队制）', async () => {
   const res = await Api.submitOrder({
     productId: current.id,
     buyerName: '王小明',
@@ -134,7 +134,8 @@ await step('用例 7：买家提交购买意向 → 商品自动冻结', async (
   });
   ok('返回口令码', !!(res && res.code), res && res.code);
   const after = await Api.getProductDetail(current.id);
-  ok('商品状态变为「冻结(1)」', after && after.status === 1, `status=${after && after.status}`);
+  ok('商品保持「在售(0)」，允许后续买家排队',
+    after && after.status === 0, `status=${after && after.status}`);
 });
 
 await step('用例 8：后台意向订单列表', async () => {
@@ -179,6 +180,58 @@ await step('用例 12：登录态存取与登出', async () => {
   ok('Auth 可读取卖家名', Auth.getSellerName() === 'admin', Auth.getSellerName());
   Auth.clearAuth();
   ok('clearAuth 后不再是登录态', Auth.isLogin() === false);
+});
+
+await step('用例 13：意向排队 → 手动下架作废 → 口令失效 → 恢复上架（迭代 2）', async () => {
+  // 提交排队意向（迭代 2：商品保持「在售」，不再下单即冻结）
+  const order = await Api.submitOrder({
+    productId: current.id,
+    buyerName: '李雷',
+    buyerPhone: '13900004567',
+    remark: '迭代2排队验证'
+  });
+  const passcode = order && order.code;
+  ok('排队意向提交成功（返回口令码）', !!passcode);
+
+  const listed = await Api.getProductDetail(current.id);
+  ok('商品保持「在售(0)」等待卖家处理', listed && listed.status === 0, `status=${listed && listed.status}`);
+
+  const progress = await Api.queryIntent({ queryCode: passcode });
+  ok('口令码查询到交易进度', !!progress && progress.productName === current.name,
+    progress ? `商品=${progress.productName}` : '无返回');
+  ok('进度为「待交易(0)」', !!progress && progress.status === 0, `status=${progress && progress.status}`);
+
+  // 手动下架：商品转「手动下架(3)」，排队意向统一失效
+  await Api.offlineProduct(current.id);
+  const offline = await Api.getProductDetail(current.id);
+  ok('商品状态变为「手动下架(3)」', offline && offline.status === 3, `status=${offline && offline.status}`);
+
+  const orders = await Api.getOrderList();
+  const voided = orders.find((o) => o.buyerName === '李雷');
+  ok('排队意向被作废为「意向失效(3)」', !!voided && voided.status === 3,
+    voided ? `status=${voided.status}` : '未找到该订单');
+
+  let voidedMsg = '';
+  try {
+    await Api.queryIntent({ queryCode: passcode });
+  } catch (e) {
+    voidedMsg = e.message;
+  }
+  ok('已作废意向的口令码查询被拒绝', /失效|无效/.test(voidedMsg), voidedMsg);
+
+  await Api.restoreProduct(current.id);
+  const back = await Api.getProductDetail(current.id);
+  ok('恢复上架后回到「在售(0)」', back && back.status === 0, `status=${back && back.status}`);
+});
+
+await step('用例 14：无效口令码查询被拒绝（迭代 2）', async () => {
+  let msg = '';
+  try {
+    await Api.queryIntent({ queryCode: '00000000deadbeef' });
+  } catch (e) {
+    msg = e.message;
+  }
+  ok('无效口令码返回中文错误', /失效|无效/.test(msg), msg);
 });
 
 // ---------- 汇总 ----------

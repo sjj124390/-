@@ -10,6 +10,7 @@
  * 后端原始接口（http://localhost:8080/api）：
  *   GET  /products/current                     当前在售/冻结商品
  *   POST /intents                              提交购买意向（返回口令码）
+ *   POST /intents/lookup                       口令码查询交易进度（迭代 2 新增）
  *   POST /admin/login                          卖家登录
  *   PUT  /admin/password                       修改密码
  *   GET  /admin/products                       商品历史（全部状态）
@@ -146,10 +147,10 @@
       });
   }
 
-  // ---------- 状态映射（后端枚举 → 页面数字状态） ----------
-  // 商品：0 在售 / 1 冻结（含已下架，可在后台恢复）/ 2 已售（历史）
-  var PRODUCT_STATUS = { ON_SALE: 0, FROZEN: 1, OFF_SHELF: 1, SOLD: 2, DRAFT: 2 };
-  // 意向：0 待交易（含已选定） / 1 交易成功 / 2 交易失败
+  // ---------- 状态映射（后端枚举 → 页面数字状态，迭代 2 语义） ----------
+  // 商品：0 在售 / 1 交易冻结 / 2 已售（历史）/ 3 手动下架（历史，可恢复上架）
+  var PRODUCT_STATUS = { ON_SALE: 0, FROZEN: 1, OFF_SHELF: 3, SOLD: 2, DRAFT: 2 };
+  // 意向基础映射；CANCELLED/EXPIRED 在 mapIntent 中结合商品状态细分为 2（交易失败）或 3（下架作废）
   var INTENT_STATUS = { PENDING: 0, SELECTED: 0, COMPLETED: 1, CANCELLED: 2, EXPIRED: 2 };
 
   function mapProduct(p) {
@@ -167,6 +168,16 @@
   }
 
   function mapIntent(it, product) {
+    var status = INTENT_STATUS[it.status] != null ? INTENT_STATUS[it.status] : 0;
+    // 迭代 2：下架作废与交易失败在后端同为 CANCELLED，
+    // 依据商品状态区分展示（商品处于手动下架态 → 意向失效 3）
+    if (
+      (it.status === 'CANCELLED' || it.status === 'EXPIRED') &&
+      product &&
+      product.status === 'OFF_SHELF'
+    ) {
+      status = 3;
+    }
     return {
       id: it.id,
       productId: it.productId,
@@ -174,7 +185,7 @@
       buyerName: it.buyerName,
       buyerPhone: it.contact,
       remark: it.note || '',
-      status: INTENT_STATUS[it.status] != null ? INTENT_STATUS[it.status] : 0,
+      status: status,
       rawStatus: it.status,
       createTime: it.createdAt
     };
@@ -254,30 +265,20 @@
     },
 
     submitOrder: function (body) {
-      var productId = body.productId;
       var payload = {
-        productId: productId,
+        productId: body.productId,
         buyerName: body.buyerName,
         contact: body.buyerPhone,
         note: body.remark || null
       };
+      // 迭代 2：意向排队制——提交后商品保持「在售」，允许多名买家排队；
+      // 商品冻结发生在卖家选定意向成交时（updateOrderStatus 内先冻结再结束交易），
+      // 「交易前商品冻结」的基线需求由这一步保证
       return request('/intents', { method: 'POST', body: payload }).then(function (data) {
-        var intentId = data && data.intentId;
-        var code = data && (data.rawCode || data.code);
-        if (!intentId) return { code: code };
-
-        // 基线需求：提交购买意向后商品立即冻结，其他买家无法重复提交
-        return request('/admin/products/' + productId + '/freeze', {
-          method: 'POST',
-          body: { intentId: intentId }
-        })
-          .then(function () {
-            return { code: code };
-          })
-          .catch(function () {
-            // 冻结失败不影响意向提交结果，由卖家在后台处理
-            return { code: code };
-          });
+        return {
+          intentId: data && data.intentId,
+          code: data && (data.rawCode || data.code)
+        };
       });
     },
 
@@ -349,9 +350,34 @@
         });
     },
 
-    // 手动冻结 = 下架（下架后买家无法提交意向，可在后台恢复上架）
+    // 手动冻结：后端模型中与手动下架同为 withdraw（下架 + 排队意向作废），
+    // 展示为「手动下架」状态；恢复上架用 restoreProduct
     freezeProduct: function (id) {
       return request('/admin/products/' + id + '/withdraw', { method: 'POST' });
+    },
+
+    // 手动下架（迭代 2 新增）：下架商品并作废所有排队未成交的购买意向，
+    // 后端 withdraw 在同一事务内完成商品下架与意向失效
+    offlineProduct: function (id) {
+      return request('/admin/products/' + id + '/withdraw', { method: 'POST' });
+    },
+
+    // 买家凭口令码查询交易进度（迭代 2 新增）。
+    // 后端出于隐私不返回买家姓名与备注，前端对应字段显示为空；
+    // 口令码无效/失效时后端返回 410/404，由页面统一提示「口令码已失效」
+    queryIntent: function (body) {
+      return request('/intents/lookup', {
+        method: 'POST',
+        body: { code: body && body.queryCode }
+      }).then(function (data) {
+        var intentStatus = String((data && data.intent_status) || '');
+        return {
+          status: intentStatus === 'COMPLETED' ? 1 : 0,
+          productName: (data && data.product_name) || '',
+          buyerName: '',
+          remark: ''
+        };
+      });
     },
 
     // 解除冻结：冻结中（有未完成交易）→ 标记交易失败恢复在售；已下架 → 直接重新上架

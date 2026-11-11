@@ -263,7 +263,8 @@ if (p.status === 0) {
   document.getElementById('btn-add').addEventListener('click', openAddModal);
   document.getElementById('btn-refresh').addEventListener('click', load);
 
-  load() {
+  // 加载列表（迭代 2 版本：区分当前商品 0/1 与历史 2/3）
+  function load() {
     renderLoading(currentBox, '加载中…');
     renderLoading(historyBox, '加载中…');
     Api.getProductList()
