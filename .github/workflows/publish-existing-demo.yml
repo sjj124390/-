@@ -26,16 +26,16 @@ jobs:
             -loop 1 -framerate 30 -t 4 -i video-output/intro.png \
             -i "Video Project 4.mp4" \
             -loop 1 -framerate 30 -t 4 -i video-output/outro.png \
-            -filter_complex "[0:v]format=yuv420p[v0];[1:v]fps=30,format=yuv420p[v1];[2:v]format=yuv420p[v2];[v0][v1][v2]concat=n=3:v=1:a=0[out]" \
-            -map "[out]" -map 1:a? -c:v libx264 -preset veryfast -crf 28 -c:a aac \
+            -filter_complex "[0:v]format=yuv420p[v0];[1:v]fps=30,format=yuv420p[v1];[2:v]format=yuv420p[v2];[v0][v1][v2]concat=n=3:v=1:a=0[out];[1:a]adelay=4000|4000,apad[a]" \
+            -map "[out]" -map "[a]" -c:v libx264 -preset veryfast -crf 28 -c:a aac \
             -shortest video-output/existing-features-demo-cut.mp4
           ffprobe -v error -show_entries format=duration,size \
             -of default=noprint_wrappers=1 video-output/existing-features-demo-cut.mp4
           test -s video-output/existing-features-demo-cut.mp4
       - name: Publish clearly labeled video on GitHub Release
         env:
-          GH_TOKEN: \${{ github.token }}
-          GH_REPO: \${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           tag=existing-features-demo-20261111
           if gh release view "$tag" >/dev/null 2>&1; then
