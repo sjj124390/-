@@ -1,7 +1,7 @@
 name: oss-course
 services:
   database:
-    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/database:${IMAGE_TAG:-1.0.0}
+    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/database:${IMAGE_TAG:-2.0.0}
     build:
       context: .
       dockerfile: deploy/docker/database.Dockerfile
@@ -20,7 +20,7 @@ services:
       retries: 36
       start_period: 20s
   backend:
-    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/backend:${IMAGE_TAG:-1.0.0}
+    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/backend:${IMAGE_TAG:-2.0.0}
     build:
       context: .
       dockerfile: deploy/docker/backend.Dockerfile
@@ -34,7 +34,7 @@ services:
       database:
         condition: service_healthy
   frontend:
-    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/frontend:${IMAGE_TAG:-1.0.0}
+    image: ${IMAGE_PREFIX:-ghcr.io/sjj124390/online-shopping}/frontend:${IMAGE_TAG:-2.0.0}
     build:
       context: .
       dockerfile: deploy/docker/frontend.Dockerfile
