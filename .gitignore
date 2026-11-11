@@ -4,3 +4,10 @@ wiki_content/
 
 # 工作区根目录的截图 / 临时图片
 /*.png
+
+# 构建产物
+backend/target/
+
+# 运行日志
+logs/
+*.log
