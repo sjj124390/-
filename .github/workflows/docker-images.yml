@@ -61,15 +61,15 @@ jobs:
           for component in backend frontend database; do
             image="$IMAGE_PREFIX/$component"
             docker push "$image:$IMAGE_TAG"
-            docker tag "$image:$IMAGE_TAG" "$image:1.0.0"
-            docker push "$image:1.0.0"
+            docker tag "$image:$IMAGE_TAG" "$image:2.0.0"
+            docker push "$image:2.0.0"
           done
           {
             echo '### Docker images built and smoke-tested'
             echo "Source commit: $GITHUB_SHA"
             for component in backend frontend database; do
               echo "- $IMAGE_PREFIX/$component:$IMAGE_TAG"
-              echo "- $IMAGE_PREFIX/$component:1.0.0"
+              echo "- $IMAGE_PREFIX/$component:2.0.0"
             done
             echo 'The downloadable artifact includes docker-load archives and test evidence.'
           } >> "$GITHUB_STEP_SUMMARY"
