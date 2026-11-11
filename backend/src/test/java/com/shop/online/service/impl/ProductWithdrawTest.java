@@ -37,7 +37,7 @@ class ProductWithdrawTest {
         when(jdbc.update(anyString(), eq(9L))).thenReturn(0);
         BusinessException ex = assertThrows(BusinessException.class, () -> service.withdraw(9L));
         assertTrue(ex.getMessage().contains("交易中"));
-        verify(jdbc, never()).update(contains("purchase_intent"), any());
+        verify(jdbc, never()).update(contains("purchase_intent"), (Object) any());
     }
 
     @Test
