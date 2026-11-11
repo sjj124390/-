@@ -1,6 +1,6 @@
--- 单商品线下交易 MVP / MySQL 8.0.16+
+-- 单商品线下交易 MVP / MySQL 5.7+（CHECK 约束需 MySQL 8.0.16+ 才会强制执行）
 -- 首次安装使用；已有同名表时主动报错，禁止覆盖原数据。
-CREATE DATABASE IF NOT EXISTS single_item_shop CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS single_item_shop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE single_item_shop;
 
 CREATE TABLE seller (
@@ -104,6 +104,10 @@ BEGIN
  IF v_status IS NULL OR v_status <> 'ON_SALE' THEN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Product is not available';
  END IF;
+ IF p_name IS NULL OR CHAR_LENGTH(TRIM(p_name))=0
+  OR p_contact IS NULL OR CHAR_LENGTH(TRIM(p_contact))=0 THEN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid buyer name or contact';
+ END IF;
  IF p_code_hash IS NULL OR p_expires IS NULL OR p_expires <= CURRENT_TIMESTAMP(6) THEN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid code or expiration';
  END IF;
@@ -168,7 +172,7 @@ BEGIN
  COMMIT;
 END$$
  
--- ===================== 本轮新增：商品手动下架存储过程 withdraw_product =====================
+-- 商品手动下架：仅在售商品可下架，同事务取消全部待处理意向。
 CREATE PROCEDURE withdraw_product(IN p_product BIGINT UNSIGNED)
 BEGIN
  DECLARE v_status VARCHAR(20) DEFAULT NULL;
