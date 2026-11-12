@@ -75,6 +75,8 @@
 | DB-20 | 下架第二步异常回滚 | 测试触发器强制意向更新失败，商品和意向均回滚 | 通过 |
 | DB-21 | `schema-memberC.sql` 安装与冒烟验收 | 可安装；非空校验、下架取消意向、恢复上架通过 | 通过 |
 | DB-22 | MySQL 5.7 分体脚本安装与冒烟验收 | 建表脚本与过程脚本可安装；上述关键流程通过 | 通过 |
+<img width="608" height="443" alt="image" src="https://github.com/user-attachments/assets/c2b6297b-a641-4f65-a6a4-1220987fe1e5" />
+
 
 ### 并发用例判定说明
 
