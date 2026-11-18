@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: online-shopping-backend-b
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:online_shop_b}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
+  jackson:
+    time-zone: Asia/Shanghai
+
+app:
+  jwt:
+    # 生产环境请通过环境变量 JWT_SECRET 覆盖
+    secret: ${JWT_SECRET:online-shop-b-jwt-secret-2026-group10-practice}
+    expire-hours: 168
+
+logging:
+  level:
+    com.shop.online: info
