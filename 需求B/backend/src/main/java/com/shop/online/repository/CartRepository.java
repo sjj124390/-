@@ -13,7 +13,7 @@ import java.util.Optional;
 public class CartRepository {
 
     private static final String BASE_SELECT =
-            "SELECT ci.product_id, p.name, p.price, p.stock, ci.quantity, p.image_url " +
+            "SELECT ci.product_id, p.name, p.price, p.stock, ci.quantity, p.image_url, p.status " +
             "FROM cart_item ci JOIN product p ON p.id = ci.product_id ";
 
     private final JdbcTemplate jdbc;
@@ -27,7 +27,8 @@ public class CartRepository {
                           BigDecimal price,
                           int stock,
                           int quantity,
-                          String imageUrl) {
+                          String imageUrl,
+                          String status) {
     }
 
     private static final RowMapper<CartRow> ROW_MAPPER = (rs, i) -> new CartRow(
@@ -36,10 +37,11 @@ public class CartRepository {
             rs.getBigDecimal("price"),
             rs.getInt("stock"),
             rs.getInt("quantity"),
-            rs.getString("image_url"));
+            rs.getString("image_url"),
+            rs.getString("status"));
 
     public List<CartRow> list(long customerId) {
-        return jdbc.query(BASE_SELECT + "WHERE ci.customer_id = ? ORDER BY ci.updated_at DESC, ci.id DESC",
+        return jdbc.query(BASE_SELECT + "WHERE ci.customer_id = ? ORDER BY ci.updated_at DESC, ci.product_id DESC",
                 ROW_MAPPER, customerId);
     }
 

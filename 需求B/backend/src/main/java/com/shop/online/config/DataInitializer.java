@@ -41,6 +41,6 @@ public class DataInitializer implements ApplicationRunner {
             customerRepository.insert("buyer", passwordEncoder.encode("123456"), "13800000000", "图书馆一楼大厅");
             log.info("已初始化演示买家账号 buyer / 123456");
         }
-        log.info("在线购物系统（需求B）后端启动完成，接口地址 http://localhost:8080/api");
+        log.info("在线购物系统（需求 B）初始化完成");
     }
 }

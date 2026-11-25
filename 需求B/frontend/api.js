@@ -1,11 +1,13 @@
 "use strict";
 
 window.ShopApi = (() => {
-  const baseUrl = "http://localhost:8080/api";
+  const location = window.location;
+  const defaultBase = location.protocol === "file:" ? "http://127.0.0.1:8080/api" : "/api";
+  const baseUrl = (new URLSearchParams(location.search).get("api") || defaultBase).replace(/\/$/, "");
   const storageKey = "group10-requirement-b-demo-v1";
   const steps = ["PLACED", "CONFIRMED", "PREPARED", "SHIPPED", "COMPLETED"];
   const seed = [
-    { id: 1, name: "城市通勤折叠车", description: "轻便折叠，适合短途通勤。", price: 699, stock: 4, imageUrl: "../../frontend/img/product-bike.svg" },
+    { id: 1, name: "城市通勤折叠车", description: "轻便折叠，适合短途通勤。", price: 699, stock: 4, imageUrl: "img/product-bike.svg" },
     { id: 2, name: "便携车灯", description: "适用于夜间骑行，可充电。", price: 59, stock: 12 },
     { id: 3, name: "骑行水壶", description: "弹盖设计，容量 600 mL。", price: 29.9, stock: 15 }
   ];
@@ -25,17 +27,20 @@ window.ShopApi = (() => {
     if (role === "seller" && index >= 0 && index < steps.length - 1) {
       actions.push(steps[index + 1]);
     }
-    // 演示规则。联调模式直接展示服务端返回的操作权限。
-    if (status === "PLACED" || (role === "seller" && ["CONFIRMED", "PREPARED"].includes(status))) {
+    if (["PLACED", "CONFIRMED", "PREPARED"].includes(status) || (role === "seller" && status === "SHIPPED")) {
       actions.push("CANCELLED");
     }
     return actions;
   }
 
   const demo = {
-    async products({ keyword }) {
-      return readDemo().products.filter(product => product.name.includes(keyword) || product.description.includes(keyword));
+    async products({ keyword, page, size }) {
+      const matches = readDemo().products.filter(product => product.stock > 0 &&
+        (product.name.includes(keyword) || product.description.includes(keyword)));
+      return { records: matches.slice((page - 1) * size, page * size), total: matches.length };
     },
+    async categories() { return []; },
+    async product({ id }) { return readDemo().products.find(product => product.id === id); },
     async favorites() {
       const data = readDemo();
       return data.products.filter(product => data.favorites.includes(product.id));
@@ -66,7 +71,7 @@ window.ShopApi = (() => {
       const product = data.products.find(item => item.id === id);
       const current = data.cart.find(item => item.productId === id);
       const nextQuantity = quantity + (add ? current?.quantity ?? 0 : 0);
-      if (!product || !Number.isSafeInteger(nextQuantity) || nextQuantity < 1 || nextQuantity > product.stock) {
+      if (!product || !Number.isSafeInteger(nextQuantity) || nextQuantity < 1 || nextQuantity > Math.min(product.stock, 999)) {
         throw new Error("商品库存不足，请调整数量");
       }
       if (current) current.quantity = nextQuantity;
@@ -76,6 +81,15 @@ window.ShopApi = (() => {
     async removeCart({ id }) {
       const data = readDemo();
       data.cart = data.cart.filter(item => item.productId !== id);
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    },
+    async moveToFavorites({ ids }) {
+      const data = readDemo();
+      if (!ids.length || ids.some(id => !data.cart.some(item => item.productId === id))) {
+        throw new Error("购物车已变动，请刷新后重新选择商品");
+      }
+      data.favorites = [...new Set([...data.favorites, ...ids])];
+      data.cart = data.cart.filter(item => !ids.includes(item.productId));
       localStorage.setItem(storageKey, JSON.stringify(data));
     },
     async checkout({ ids }) {
@@ -131,7 +145,9 @@ window.ShopApi = (() => {
     }
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.code !== 200) {
-      throw new Error(payload?.message || `接口请求失败（HTTP ${response.status}）`);
+      const error = new Error(payload?.message || `接口请求失败（HTTP ${response.status}）`);
+      error.status = response.status;
+      throw error;
     }
     return payload.data;
   }
@@ -143,10 +159,41 @@ window.ShopApi = (() => {
       if (!data?.token) throw new Error("登录接口未返回可用于联调的 token");
       return data.token;
     },
-    async products({ keyword, token }) {
-      const query = new URLSearchParams({ keyword, page: "1", size: "50" });
-      return (await request(`/products?${query}`, { token })).records;
+    async register({ username, password, phone, defaultTradePlace }) {
+      const data = await request("/customers/register", {
+        method: "POST", body: { username, password, phone, defaultTradePlace }
+      });
+      return data.token;
     },
+    products({ keyword, categoryId, page, size }) {
+      const query = new URLSearchParams({ keyword, page, size });
+      if (categoryId) query.set("categoryId", categoryId);
+      return request(`/products?${query}`);
+    },
+    categories: () => request("/categories"),
+    product: ({ id }) => request(`/products/${encodeURIComponent(id)}`),
+    profile: ({ token }) => request("/customers/me", { token }),
+    adminProducts({ token, keyword, categoryId, page, size }) {
+      const query = new URLSearchParams({ keyword, page, size });
+      if (categoryId) query.set("categoryId", categoryId);
+      return request(`/admin/products?${query}`, { token });
+    },
+    adminCategories: ({ token }) => request("/admin/categories", { token }),
+    saveProduct: ({ id, product, token }) => request(id ? `/admin/products/${id}` : "/admin/products", {
+      token, method: id ? "PUT" : "POST", body: product
+    }),
+    productStatus: ({ id, status, token }) => request(`/admin/products/${id}/status`, {
+      token, method: "PUT", body: { status }
+    }),
+    saveCategory: ({ id, category, token }) => request(id ? `/admin/categories/${id}` : "/admin/categories", {
+      token, method: id ? "PUT" : "POST", body: category
+    }),
+    deleteCategory: ({ id, token }) => request(`/admin/categories/${id}`, { token, method: "DELETE" }),
+    adminCustomers: ({ token }) => request("/admin/customers", { token }),
+    adminCustomerOrders: ({ id, token }) => request(`/admin/customers/${id}/orders`, { token }),
+    changePassword: ({ oldPassword, newPassword, token }) => request("/admin/password", {
+      token, method: "PUT", body: { oldPassword, newPassword }
+    }),
     favorites: ({ token }) => request("/customers/me/favorites", { token }),
     cart: ({ token }) => request("/customers/me/cart/items", { token }),
     orders: ({ token, role }) => request(role === "buyer" ? "/customers/me/orders" : "/admin/orders", { token }),
@@ -157,6 +204,9 @@ window.ShopApi = (() => {
       ? request("/customers/me/cart/items", { token, method: "POST", body: { productId: id, quantity } })
       : request(`/customers/me/cart/items/${encodeURIComponent(id)}`, { token, method: "PUT", body: { quantity } }),
     removeCart: ({ id, token }) => request(`/customers/me/cart/items/${encodeURIComponent(id)}`, { token, method: "DELETE" }),
+    moveToFavorites: ({ ids, token }) => request("/customers/me/cart/to-favorites", {
+      token, method: "POST", body: { productIds: ids }
+    }),
     checkout: ({ ids, token }) => request("/customers/me/orders", { token, method: "POST", body: { productIds: ids } }),
     changeOrder: ({ id, status, role, token }) => {
       const scope = role === "buyer" ? "/customers/me/orders" : "/admin/orders";

@@ -4,6 +4,7 @@ import com.shop.online.dto.Requests;
 import com.shop.online.dto.Views;
 import com.shop.online.exception.BusinessException;
 import com.shop.online.repository.CartRepository;
+import com.shop.online.repository.CustomerRepository;
 import com.shop.online.repository.FavoriteRepository;
 import com.shop.online.repository.ProductRepository;
 import org.springframework.stereotype.Service;
@@ -18,13 +19,16 @@ public class CartService {
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
     private final FavoriteRepository favoriteRepository;
+    private final CustomerRepository customerRepository;
 
     public CartService(CartRepository cartRepository,
                        ProductRepository productRepository,
-                       FavoriteRepository favoriteRepository) {
+                       FavoriteRepository favoriteRepository,
+                       CustomerRepository customerRepository) {
         this.cartRepository = cartRepository;
         this.productRepository = productRepository;
         this.favoriteRepository = favoriteRepository;
+        this.customerRepository = customerRepository;
     }
 
     public List<Views.CartItemView> list(long customerId) {
@@ -35,7 +39,8 @@ public class CartService {
                         row.price(),
                         row.stock(),
                         row.quantity(),
-                        row.imageUrl()))
+                        row.imageUrl(),
+                        row.status()))
                 .toList();
     }
 
@@ -44,10 +49,14 @@ public class CartService {
      */
     @Transactional
     public void add(long customerId, Requests.CartAdd request) {
-        ProductRepository.ProductRow product = requireOnSaleProduct(request.productId());
+        lockCart(customerId);
+        ProductRepository.ProductLockRow product = requireOnSaleProduct(request.productId());
         CartRepository.CartRow existing = cartRepository.find(customerId, request.productId()).orElse(null);
         int current = existing == null ? 0 : existing.quantity();
         int next = current + request.quantity();
+        if (next > 999) {
+            throw BusinessException.badRequest("同一商品最多可加入 999 件");
+        }
         if (next > product.stock()) {
             throw BusinessException.badRequest("商品库存不足，请调整数量");
         }
@@ -61,8 +70,10 @@ public class CartService {
     /**
      * 更新为指定数量（覆盖原数量）。
      */
+    @Transactional
     public void updateQuantity(long customerId, long productId, int quantity) {
-        ProductRepository.ProductRow product = requireOnSaleProduct(productId);
+        lockCart(customerId);
+        ProductRepository.ProductLockRow product = requireOnSaleProduct(productId);
         if (quantity > product.stock()) {
             throw BusinessException.badRequest("商品库存不足，请调整数量");
         }
@@ -71,7 +82,9 @@ public class CartService {
         cartRepository.updateQuantity(customerId, productId, quantity);
     }
 
+    @Transactional
     public void remove(long customerId, long productId) {
+        lockCart(customerId);
         cartRepository.delete(customerId, productId);
     }
 
@@ -85,19 +98,24 @@ public class CartService {
         if (ids.isEmpty()) {
             throw BusinessException.badRequest("请选择要收藏的商品");
         }
+        lockCart(customerId);
         List<CartRepository.CartRow> rows = cartRepository.listByIds(customerId, ids);
-        if (rows.isEmpty()) {
-            throw BusinessException.badRequest("所选商品不在购物车中");
+        if (rows.size() != ids.size()) {
+            throw BusinessException.badRequest("购物车已变动，请刷新后重新选择商品");
         }
-        List<Long> validIds = rows.stream().map(CartRepository.CartRow::productId).toList();
-        for (Long productId : validIds) {
+        for (Long productId : ids) {
             favoriteRepository.add(customerId, productId);
         }
-        cartRepository.deleteMany(customerId, validIds);
+        cartRepository.deleteMany(customerId, ids);
     }
 
-    private ProductRepository.ProductRow requireOnSaleProduct(long productId) {
-        ProductRepository.ProductRow product = productRepository.findById(productId)
+    private void lockCart(long customerId) {
+        customerRepository.lockById(customerId)
+                .orElseThrow(() -> BusinessException.notFound("客户不存在"));
+    }
+
+    private ProductRepository.ProductLockRow requireOnSaleProduct(long productId) {
+        ProductRepository.ProductLockRow product = productRepository.lockByIds(List.of(productId)).stream().findFirst()
                 .orElseThrow(() -> BusinessException.notFound("商品不存在"));
         if (!ProductService.STATUS_ON_SALE.equals(product.status())) {
             throw BusinessException.badRequest("商品已下架");

@@ -2,6 +2,7 @@ package com.shop.online.dto;
 
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.Max;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
@@ -48,16 +49,18 @@ public final class Requests {
 
     public record CartAdd(
             @NotNull(message = "商品 ID 不能为空") Long productId,
-            @Min(value = 1, message = "数量至少为 1") int quantity) {
+            @Min(value = 1, message = "数量至少为 1")
+            @Max(value = 999, message = "数量最多为 999") int quantity) {
     }
 
     public record CartUpdate(
-            @Min(value = 1, message = "数量至少为 1") int quantity) {
+            @Min(value = 1, message = "数量至少为 1")
+            @Max(value = 999, message = "数量最多为 999") int quantity) {
     }
 
     public record Checkout(
             @NotEmpty(message = "请选择要下单的商品") List<Long> productIds,
-            String tradePlace) {
+            @Size(max = 200, message = "交易地点不能超过 200 个字符") String tradePlace) {
     }
 
     public record StatusChange(

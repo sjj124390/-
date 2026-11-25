@@ -6,6 +6,7 @@
   <title>在线购物系统 · 需求 B</title>
   <link rel="stylesheet" href="style.css">
   <script src="api.js" defer></script>
+  <script src="admin.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -14,7 +15,7 @@
       <a href="index.html" class="brand">在线购物系统 · 需求 B</a>
       <div class="settings">
         <label>数据来源
-          <select id="mode"><option value="demo">本地演示</option><option value="live">后端联调</option></select>
+          <select id="mode"><option value="live">后端联调</option><option value="demo">本地演示</option></select>
         </label>
         <label>操作身份
           <select id="role"><option value="buyer">买家</option><option value="seller">商家</option></select>
@@ -26,6 +27,7 @@
     <nav id="navigation" aria-label="功能导航"></nav>
     <div class="page-heading">
       <h1 id="heading" tabindex="-1">商品浏览</h1>
+      <button type="button" id="signin" class="secondary" hidden>买家登录 / 注册</button>
       <button type="button" id="logout" class="secondary" hidden>退出登录</button>
     </div>
     <p id="notice" role="status" aria-live="polite" hidden></p>

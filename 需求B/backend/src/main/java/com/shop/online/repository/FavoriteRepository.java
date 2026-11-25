@@ -20,7 +20,7 @@ public class FavoriteRepository {
      */
     public void add(long customerId, long productId) {
         jdbc.update("INSERT INTO favorite (customer_id, product_id) VALUES (?, ?) " +
-                "ON DUPLICATE KEY UPDATE id = id", customerId, productId);
+                "ON DUPLICATE KEY UPDATE created_at = created_at", customerId, productId);
     }
 
     public int remove(long customerId, long productId) {
@@ -34,7 +34,7 @@ public class FavoriteRepository {
                         "c.name AS category_name, p.status, p.off_shelf_reason, p.sales, p.created_at " +
                         "FROM favorite f JOIN product p ON p.id = f.product_id " +
                         "LEFT JOIN category c ON c.id = p.category_id " +
-                        "WHERE f.customer_id = ? ORDER BY f.created_at DESC, f.id DESC",
+                        "WHERE f.customer_id = ? ORDER BY f.created_at DESC, f.product_id DESC",
                 ProductRepository.ROW_MAPPER, customerId);
     }
 

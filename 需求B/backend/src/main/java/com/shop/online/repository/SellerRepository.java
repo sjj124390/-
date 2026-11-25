@@ -2,14 +2,9 @@ package com.shop.online.repository;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 @Repository
@@ -48,17 +43,9 @@ public class SellerRepository {
         return count == null ? 0 : count;
     }
 
-    public long insert(String username, String passwordHash) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO seller (username, password_hash) VALUES (?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, username);
-            ps.setString(2, passwordHash);
-            return ps;
-        }, keyHolder);
-        return Objects.requireNonNull(keyHolder.getKey()).longValue();
+    public void insert(String username, String passwordHash) {
+        jdbc.update("INSERT INTO seller (id, username, password_hash) VALUES (1, ?, ?)",
+                username, passwordHash);
     }
 
     public void updatePassword(long id, String passwordHash) {

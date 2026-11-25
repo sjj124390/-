@@ -14,6 +14,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 
 @Service
@@ -108,7 +109,7 @@ public class ProductService {
         String status = stock > 0 ? STATUS_ON_SALE : STATUS_OFF_SHELF;
         String reason = stock > 0 ? null : REASON_SOLD_OUT;
 
-        long id = productRepository.insert(name, request.description(), price, stock,
+        long id = productRepository.insert(name, Objects.requireNonNullElse(request.description(), ""), price, stock,
                 imageUrl, categoryId, status, reason);
         productRepository.replaceImages(id, images);
         return get(id);
@@ -116,7 +117,7 @@ public class ProductService {
 
     @Transactional
     public Views.ProductView update(long id, Requests.ProductSave request) {
-        ProductRepository.ProductRow current = productRepository.findById(id)
+        ProductRepository.ProductLockRow current = productRepository.lockByIds(List.of(id)).stream().findFirst()
                 .orElseThrow(() -> BusinessException.notFound("商品不存在"));
 
         String name = request.name().trim();
@@ -130,7 +131,7 @@ public class ProductService {
         String reason;
         if (stock <= 0) {
             status = STATUS_OFF_SHELF;
-            reason = REASON_SOLD_OUT;
+            reason = REASON_MANUAL.equals(current.offShelfReason()) ? REASON_MANUAL : REASON_SOLD_OUT;
         } else if (STATUS_OFF_SHELF.equals(current.status())
                 && REASON_SOLD_OUT.equals(current.offShelfReason())) {
             // 补货后自动重新上架
@@ -141,14 +142,15 @@ public class ProductService {
             reason = current.offShelfReason();
         }
 
-        productRepository.update(id, name, request.description(), price, stock,
+        productRepository.update(id, name, Objects.requireNonNullElse(request.description(), ""), price, stock,
                 imageUrl, categoryId, status, reason);
         productRepository.replaceImages(id, images);
         return get(id);
     }
 
+    @Transactional
     public void changeStatus(long id, String status) {
-        ProductRepository.ProductRow current = productRepository.findById(id)
+        ProductRepository.ProductLockRow current = productRepository.lockByIds(List.of(id)).stream().findFirst()
                 .orElseThrow(() -> BusinessException.notFound("商品不存在"));
         if (STATUS_ON_SALE.equals(status)) {
             if (current.stock() <= 0) {
@@ -212,6 +214,6 @@ public class ProductService {
         if (imageUrl != null && !imageUrl.isBlank()) {
             return imageUrl.trim();
         }
-        return images.isEmpty() ? null : images.get(0);
+        return images.isEmpty() ? "" : images.get(0);
     }
 }

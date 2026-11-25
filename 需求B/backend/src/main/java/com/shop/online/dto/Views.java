@@ -36,7 +36,8 @@ public final class Views {
             BigDecimal price,
             int stock,
             int quantity,
-            String imageUrl) {
+            String imageUrl,
+            String status) {
     }
 
     public record OrderItemView(

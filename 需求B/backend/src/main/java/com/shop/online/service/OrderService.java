@@ -13,8 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -22,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,8 +53,6 @@ public class OrderService {
     private static final Set<String> SELLER_CANCELLABLE =
             Set.of(STATUS_PLACED, STATUS_CONFIRMED, STATUS_PREPARED, STATUS_SHIPPED);
 
-    private static final DateTimeFormatter ORDER_NO_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final CartRepository cartRepository;
@@ -87,7 +82,7 @@ public class OrderService {
             throw BusinessException.badRequest("单次最多下单 50 种商品");
         }
 
-        CustomerRepository.CustomerRow customer = customerRepository.findById(customerId)
+        CustomerRepository.CustomerRow customer = customerRepository.lockById(customerId)
                 .orElseThrow(() -> BusinessException.notFound("客户不存在"));
 
         List<CartRepository.CartRow> cartRows = cartRepository.listByIds(customerId, productIds);
@@ -131,7 +126,8 @@ public class OrderService {
                 : request.tradePlace().trim();
 
         long orderId = orderRepository.insertOrder(
-                generateOrderNo(), customerId, STATUS_PLACED, total, tradePlace);
+                customerId, STATUS_PLACED, total, customer.username(), customer.phone(), tradePlace);
+        orderRepository.logStatus(orderId, null, STATUS_PLACED, AuthUser.ROLE_CUSTOMER);
         for (ProductRepository.ProductLockRow product : products) {
             int quantity = quantities.get(product.id());
             orderRepository.insertItem(orderId, product.id(), product.name(),
@@ -182,6 +178,7 @@ public class OrderService {
             throw BusinessException.conflict("订单状态已变动，请刷新后重试");
         }
         orderRepository.updateStatus(orderId, targetStatus);
+        orderRepository.logStatus(orderId, lock.status(), targetStatus, AuthUser.ROLE_SELLER);
         return get(orderId, AuthUser.ROLE_SELLER, null);
     }
 
@@ -204,7 +201,7 @@ public class OrderService {
                 throw BusinessException.notFound("订单不存在");
             }
             if (!CUSTOMER_CANCELLABLE.contains(lock.status())) {
-                throw BusinessException.conflict("订单已开始发货，无法取消");
+                throw BusinessException.conflict("订单已开始发货、已完成或已取消，无法取消");
             }
         }
 
@@ -238,6 +235,7 @@ public class OrderService {
 
         orderRepository.cancel(orderId, seller ? AuthUser.ROLE_SELLER : AuthUser.ROLE_CUSTOMER,
                 seller ? "商家取消订单" : "客户取消订单");
+        orderRepository.logStatus(orderId, lock.status(), STATUS_CANCELLED, role);
         return get(orderId, role, customerId);
     }
 
@@ -306,8 +304,4 @@ public class OrderService {
         return actions;
     }
 
-    private String generateOrderNo() {
-        return LocalDateTime.now().format(ORDER_NO_FORMAT)
-                + String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
-    }
 }
