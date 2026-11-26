@@ -3,31 +3,23 @@
 **第 10 组 · 朱江（数据库负责人）**
 **日期：2026-11-18**
 
-## 应用联调
-
-运行前按 [需求 B 启动说明](../README.md) 导入 `schema-b.sql` 和 `integration-b.sql`。后者仅为应用联调增加销量、下架原因和订单封面快照字段，并保留已有订单及明细。`seed-demo-b.sql` 在应用第一次启动后补充演示商品。应用通过 Spring Boot 事务执行下单、修改订单和库存变化，也写入 `order_status_log`。
-
-本页下文保留数据库阶段的独立 SQL 设计和原始验收记录。`verify-b.sql` 会清理表中业务数据，请在单独的数据库实例验收。该阶段的存储过程用于数据库设计验证，页面从后端 API 访问数据库。
-
 ## 1. 范围
 
-本方案覆盖挑战需求 A 与挑战需求 B 对数据层的要求：
+本方案建立在需求 A 已完成的数据库（多商品、二级分类、库存、商品多图与客户体系，共 7 张表）之上，对课程需求逐条对应如下：
 
 | 需求 | 内容 | 对应实现 |
 |---|---|---|
-| A.1 商品管理升级 | 多商品在售、二级分类、库存、浏览与搜索、多图与富媒体描述 | `product`、`category`、`product_image`、全文索引 |
+| A.1 商品管理升级 | 多商品在售、二级分类、库存、浏览与搜索、多图与富媒体描述 | `product`、`category`、`product_image`、全文索引（沿用需求 A） |
 | A.2 客户升级 | 客户注册登录、查看历史订单、商家查看客户与购买记录 | `customer` + `customer_order` 关联查询 |
 | B.1 订单升级 | 五状态订单（下单→确认→备货完成→开始发货→交易完成）、双方取消规则 | `customer_order`、`order_status_log`、`advance_order`、`cancel_order` |
 | B.2 商品预选升级 | 收藏、购物车、多件下单、购物车转收藏 | `favorite`、`cart_item`、`place_order`、`cart_to_favorite` |
 
-相对基线库（`database/schema.sql`，单商品 + 购买意向模型）的主要变化：
+相对需求 A 数据库的主要变化（**删 2 张、增 5 张**）：
 
-1. 移除 `active_slot` 唯一约束，支持多件商品同时在售；
-2. 商品增加 `category_id`、`stock`，库存为 0 由触发器自动下架；
-3. 新增客户体系（注册 / 登录 / 默认交易地点）；
-4. 新增收藏、购物车，支持勾选多件商品一次性下单；
-5. 订单模型由「购买意向 + 线下交易」升级为「订单 + 订单明细 + 状态流水」；
-6. 下单原子扣减库存、取消回补库存，防超卖由数据库层保证。
+1. 删除 `purchase_intent`（购买意向）、`offline_trade`（线下交易）两张表，购买意向模型整体替换为「订单 + 订单明细 + 状态流水」的订单模型；
+2. 新增收藏、购物车，支持勾选多件商品一次性下单；
+3. 下单原子扣减库存、取消回补库存并自动恢复在售，防超卖由数据库层保证；
+4. 沿用需求 A 的卖家、商品（含分类与库存）、分类、商品多图、客户 5 张表结构，以及「库存为 0 自动下架」触发器、ngram 全文索引等设计。
 
 ## 2. 文件与安装
 
@@ -46,7 +38,7 @@ mysql -u root -p --default-character-set=utf8mb4 < verify-b.sql
 mysql -u root -p --default-character-set=utf8mb4 --force < verify-b-negative.sql
 ```
 
-脚本使用独立库 `shop_req_b`，不覆盖已通过验收的基线库 `single_item_shop`；重复执行会在同名表处报错，不会删除已有数据。`verify-b.sql` 可重复执行（开头清理业务数据）。
+脚本使用独立库 `shop_req_b`，不覆盖需求 A 的库，两轮成果互不影响、可随时对照演示；重复执行会在同名表处报错，不会删除已有数据。`verify-b.sql` 可重复执行（开头清理业务数据）。
 
 ## 3. 表结构
 
@@ -127,7 +119,7 @@ stateDiagram-v2
 ### 5.3 库存规则
 
 - 下单：`UPDATE product SET stock = stock - quantity WHERE status='ON_SALE' AND stock >= quantity`，按影响行数判断是否充足，库存不足时整单回滚；
-- 售罄：`trg_product_zero_stock_offline` 触发器把库存为 0 的在售商品自动置为 `OFF_SHELF`（A.1.3）；
+- 售罄：`trg_product_zero_stock_offline` 触发器把库存为 0 的在售商品自动置为 `OFF_SHELF`（沿用需求 A 的触发器）；
 - 取消：按明细回补库存，商品由 `OFF_SHELF` 自动恢复 `ON_SALE`；
 - 上架：库存为 0 的商品不允许发布，避免"零库存上架"。
 
@@ -135,11 +127,12 @@ stateDiagram-v2
 
 | 设计点 | 做法 | 原因 |
 |---|---|---|
-| 多商品在售 | 移除基线 `active_slot` 唯一约束 | 需求 A.1 要求多商品同时销售 |
-| 同层级分类唯一 | 生成列 `parent_key = COALESCE(parent_id,0)` 参与唯一索引 | MySQL 唯一索引不约束 NULL，一级分类需要同层判重 |
+| 多商品在售（沿用 A） | `product` 无单商品唯一约束，多件同时 `ON_SALE` | 需求 A.1 已实现，需求 B 直接沿用 |
+| 同层级分类唯一（沿用 A） | 生成列 `parent_key = COALESCE(parent_id,0)` 参与唯一索引 | MySQL 唯一索引不约束 NULL，一级分类需要同层判重 |
+| 中文搜索（沿用 A） | `FULLTEXT ... WITH PARSER ngram` | 中文无空格，ngram 分词才能命中关键词 |
 | 收藏 / 购物车去重 | 复合主键 `(customer_id, product_id)` | 天然防止重复记录，避免应用层先查后插 |
 | 历史金额可追溯 | 订单明细保存 `unit_price`、`product_name` 快照 | 商品改价或改名不影响历史订单 |
-| 搜索 | `FULLTEXT ... WITH PARSER ngram` | 中文无空格，ngram 分词才能命中关键词 |
+| 取消必须留痕 | CHECK 约束要求取消时 `cancelled_at`、`cancel_actor` 同时写入 | 避免「已取消但无取消记录」的脏数据 |
 | 列表查询 | `idx_order_customer(customer_id,status,created_at)`、`idx_product_category` | 覆盖"我的订单""分类浏览"等高频条件 |
 
 ## 7. 并发与一致性
